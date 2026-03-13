@@ -27,53 +27,56 @@ def user_replied():
 
     response = requests.get(url).json()
 
-    if response["result"]:
+    if response.get("result"):
 
         for update in response["result"]:
 
             if "message" in update:
 
                 if str(update["message"]["chat"]["id"]) == CHAT_ID:
-
                     return True
 
     return False
 
 
-print("Checking BookMyShow page...")
+def booking_detected(page):
+
+    if "dhurandhar" not in page:
+        return False
+
+    date_patterns = [
+        "19 mar",
+        "mar 19",
+        "19 march",
+        "march 19"
+    ]
+
+    if not any(pattern in page for pattern in date_patterns):
+        return False
+
+    pm_times = re.findall(r"\b([1-9]|1[0-2]):[0-5][0-9]\s?pm\b", page)
+
+    if pm_times:
+        return True
+
+    return False
 
 
-# Stop alerts if user responded
-if user_replied():
+def check_booking():
 
-    print("User replied. Stopping alerts.")
-
-else:
+    print("Checking BookMyShow page...")
 
     response = requests.get(MOVIE_URL)
 
-    if response.status_code == 200:
+    if response.status_code != 200:
+        print("Failed to load page")
+        return
 
-        page = response.text.lower()
+    page = response.text.lower()
 
-        if "dhurandhar" in page:
+    if booking_detected(page):
 
-            date_patterns = [
-                "19 mar",
-                "mar 19",
-                "19 march",
-                "march 19"
-            ]
-
-            date_found = any(pattern in page for pattern in date_patterns)
-
-            if date_found:
-
-                pm_times = re.findall(r"\b([1-9]|1[0-2]):[0-5][0-9]\s?pm\b", page)
-
-                if pm_times:
-
-                    message = """
+        message = """
 🚨 BOOKINGS OPEN 🚨
 
 Movie: Dhurandhar The Revenge
@@ -84,19 +87,26 @@ Showtimes after 12 PM detected
 Book now:
 https://in.bookmyshow.com/bengaluru/movies/dhurandhar-the-revenge
 
-Reply STOP to this bot to stop alerts.
+Reply STOP to stop alerts.
 """
 
-                    send_alert(message)
-
-                else:
-
-                    print("No PM showtimes yet.")
-
-            else:
-
-                print("19 March shows not detected yet.")
+        send_alert(message)
 
     else:
 
-        print("Failed to load page.")
+        print("Bookings not detected yet.")
+
+
+def main():
+
+    if user_replied():
+
+        print("User responded. Stopping alerts.")
+
+        return
+
+    check_booking()
+
+
+if __name__ == "__main__":
+    main()
