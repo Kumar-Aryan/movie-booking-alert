@@ -45,8 +45,9 @@ def check_booking():
     response = requests.get(MOVIE_URL)
 
     page = response.text.lower()
+    if True:
 
-    if "mar 19" in page or "19 mar" in page:
+    # if "mar 19" in page or "19 mar" in page:
 
         if "pm" in page:
 
