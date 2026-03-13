@@ -5,7 +5,6 @@ from datetime import datetime
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-# Movie event code from your URL
 EVENT_CODE = "ET00484171"
 
 API_URL = "https://in.bookmyshow.com/api/showtimes/byEvent"
@@ -13,6 +12,11 @@ API_URL = "https://in.bookmyshow.com/api/showtimes/byEvent"
 PARAMS = {
     "eventCode": EVENT_CODE,
     "cityCode": "BANG"
+}
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json"
 }
 
 
@@ -33,14 +37,25 @@ def check_showtimes():
 
     print("Calling BookMyShow API...")
 
-    response = requests.get(API_URL, params=PARAMS)
+    response = requests.get(API_URL, params=PARAMS, headers=HEADERS)
 
-    data = response.json()
+    print("Status Code:", response.status_code)
+
+    if response.status_code != 200:
+        print("API request failed")
+        return
+
+    try:
+        data = response.json()
+    except Exception as e:
+        print("Response was not JSON")
+        print(response.text[:500])
+        return
 
     venues = data.get("data", {}).get("venues", [])
 
     if not venues:
-        print("No venues returned from API.")
+        print("No venues returned.")
         return
 
     for venue in venues:
@@ -58,13 +73,13 @@ def check_showtimes():
                 message = f"""
 TEST ALERT SUCCESS 🎉
 
-Movie detected: The Kerala Story 2: Goes Beyond
+Movie: The Kerala Story 2
 City: Bangalore
 Theatre: {theatre}
 
 Showtime: {show_dt}
 
-Your BookMyShow bot is working correctly.
+Bot is working correctly.
 """
 
                 send_alert(message)
