@@ -1,42 +1,71 @@
 import requests
 import os
+import json
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-URL = "https://in.bookmyshow.com/bengaluru/movies"
+MOVIE_URL = "https://in.bookmyshow.com/bengaluru/movies/dhurandhar-the-revenge"
+
+STATE_FILE = "state.json"
+
 
 def send_alert(message):
 
-    telegram_url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
     requests.post(
-        telegram_url,
+        url,
         data={
             "chat_id": CHAT_ID,
             "text": message
         }
     )
 
-def check_movie():
 
-    response = requests.get(URL)
+def already_notified():
 
-    page_text = response.text.lower()
+    try:
+        with open(STATE_FILE) as f:
+            data = json.load(f)
+            return data.get("notified", False)
 
-    if "dhurandar" in page_text:
+    except:
+        return False
 
-        message = """
-🎬 BOOKINGS MAY BE OPEN
 
-Movie: Dhurandar The Revenge
+def mark_notified():
+
+    with open(STATE_FILE, "w") as f:
+        json.dump({"notified": True}, f)
+
+
+def check_booking():
+
+    response = requests.get(MOVIE_URL)
+
+    page = response.text.lower()
+
+    if "mar 19" in page or "19 mar" in page:
+
+        if "pm" in page:
+
+            if not already_notified():
+
+                message = """
+🎬 DHURANDAR BOOKINGS OPEN
+
 City: Bangalore
-Date: 19 March (2nd half)
+Date: 19 March
+Time: After 12 PM
 
-Check BookMyShow quickly:
-https://in.bookmyshow.com
+Book immediately:
+https://in.bookmyshow.com/bengaluru/movies/dhurandhar-the-revenge
 """
 
-        send_alert(message)
+                send_alert(message)
 
-check_movie()
+                mark_notified()
+
+
+check_booking()
