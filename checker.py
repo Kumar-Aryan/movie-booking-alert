@@ -1,12 +1,19 @@
 import requests
 import os
-import re
-
+from datetime import datetime
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-MOVIE_URL = "https://in.bookmyshow.com/bengaluru/movies/dhurandhar-the-revenge"
+# Movie event code from your URL
+EVENT_CODE = "ET00484171"
+
+API_URL = "https://in.bookmyshow.com/api/showtimes/byEvent"
+
+PARAMS = {
+    "eventCode": EVENT_CODE,
+    "cityCode": "BANG"
+}
 
 
 def send_alert(message):
@@ -22,91 +29,52 @@ def send_alert(message):
     )
 
 
-def user_replied():
+def check_showtimes():
 
-    url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+    print("Calling BookMyShow API...")
 
-    response = requests.get(url).json()
+    response = requests.get(API_URL, params=PARAMS)
 
-    if response.get("result"):
+    data = response.json()
 
-        for update in response["result"]:
+    venues = data.get("data", {}).get("venues", [])
 
-            if "message" in update:
-
-                if str(update["message"]["chat"]["id"]) == CHAT_ID:
-                    return True
-
-    return False
-
-
-def booking_detected(page):
-
-    if "dhurandhar" not in page:
-        return False
-
-    date_patterns = [
-        "19 mar",
-        "mar 19",
-        "19 march",
-        "march 19"
-    ]
-
-    if not any(pattern in page for pattern in date_patterns):
-        return False
-
-    pm_times = re.findall(r"\b([1-9]|1[0-2]):[0-5][0-9]\s?pm\b", page)
-
-    if pm_times:
-        return True
-
-    return False
-
-
-def check_booking():
-
-    print("Checking BookMyShow page...")
-
-    response = requests.get(MOVIE_URL)
-
-    if response.status_code != 200:
-        print("Failed to load page")
+    if not venues:
+        print("No venues returned from API.")
         return
 
-    page = response.text.lower()
+    for venue in venues:
 
-    if booking_detected(page):
+        theatre = venue.get("name")
 
-        message = """
-🚨 BOOKINGS OPEN 🚨
+        for show in venue.get("showTimes", []):
 
-Movie: Dhurandhar The Revenge
+            showtime = show.get("showTime")
+
+            show_dt = datetime.fromisoformat(showtime)
+
+            if show_dt.day == 15 and show_dt.hour >= 12:
+
+                message = f"""
+TEST ALERT SUCCESS 🎉
+
+Movie detected: The Kerala Story 2: Goes Beyond
 City: Bangalore
-Date: 19 March
-Showtimes after 12 PM detected
+Theatre: {theatre}
 
-Book now:
-https://in.bookmyshow.com/bengaluru/movies/dhurandhar-the-revenge
+Showtime: {show_dt}
 
-Reply STOP to stop alerts.
+Your BookMyShow bot is working correctly.
 """
 
-        send_alert(message)
+                send_alert(message)
 
-    else:
-
-        print("Bookings not detected yet.")
+                return
 
 
 def main():
 
-    if user_replied():
-
-        print("User responded. Stopping alerts.")
-
-        return
-
-    check_booking()
+    check_showtimes()
 
 
 if __name__ == "__main__":
